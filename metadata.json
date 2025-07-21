@@ -1,0 +1,6 @@
+{
+  "name": "Pendly",
+  "description": "Pendly is an elegant and minimalist application designed to help users track important upcoming events. The main goal is to clearly show how many days are left until each event and store all data in the cloud for access from any device.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
