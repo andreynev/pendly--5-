@@ -71,13 +71,14 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </div>
 
             <div className={cardStyles}>
-                <h3 className="font-medium text-base mb-2">Синхронізація з календарем</h3>
+                <h3 className="font-medium text-base mb-2">Синхронізація з Google Calendar</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                    Автоматично додавайте події з вашого Google Calendar.
+                    Події з основного календаря (від місяця тому до року вперед) додаються в Pendly, а змінені — оновлюються.
+                    Доступ лише для читання: Pendly нічого не змінює у вашому календарі.
                 </p>
                 {calendarConnection ? (
                     <div className="space-y-4">
-                        <p className="text-sm text-green-600 dark:text-green-400">Підключено як: <span className="font-semibold">{calendarConnection}</span></p>
+                        <p className="text-sm text-green-600 dark:text-green-400">Підключено: <span className="font-semibold break-all">{calendarConnection}</span></p>
                         <div className="flex items-center gap-2">
                             <button onClick={onSyncNow} disabled={isSyncing} className={secondaryButton}>
                                 {isSyncing ? <><SpinnerIcon /> Синхронізація...</> : <><SyncIcon /> Синхронізувати</>}
@@ -86,8 +87,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({
                                 onClick={onDisconnect}
                                 disabled={isSyncing}
                                 className="p-3 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/60 transition-colors disabled:opacity-50"
-                                aria-label="Відключити"
-                                title="Відключити"
+                                aria-label="Відключити Google Calendar"
+                                title="Відключити Google Calendar"
                             >
                                 <DisconnectIcon />
                             </button>

@@ -9,10 +9,9 @@
 - Відлік днів до подій з повтореннями (щотижня / щомісяця / щороку)
 - Додавання, редагування (натисніть на подію) та видалення з можливістю «Повернути»
 - Пошук і фільтр за категоріями, архів минулих подій
+- Синхронізація з Google Calendar (лише читання): нові події додаються, змінені оновлюються
 - Імпорт/експорт `.ics` (Apple, Outlook, Google), експорт окремої події в календар
 - Світла / темна / системна тема, встановлення на телефон як застосунок
-
-> Синхронізація з Google Calendar поки що імітується (`services/calendarApi.ts`).
 
 ## Firebase
 
@@ -21,6 +20,23 @@
 - Дані: `users/{uid}/events/{eventId}`
 - Правила доступу: `firestore.rules` — кожен користувач бачить і змінює лише свої події
 - У консолі Firebase мають бути увімкнені **Authentication → Google** та створена **Firestore Database**
+
+## Google Calendar
+
+Pendly отримує доступ `calendar.readonly` через той самий вхід Google (без сервера): токен діє ~1 годину
+і зберігається лише в поточній сесії браузера; після цього кнопка «Синхронізувати» один раз запитає доступ знову.
+При відкритті застосунку, поки токен дійсний, синхронізація запускається автоматично.
+
+Одноразове налаштування в [Google Cloud Console](https://console.cloud.google.com) (проєкт `pendly-c0b1f`):
+
+1. **APIs & Services → Library → Google Calendar API → Enable**.
+2. **Google Auth Platform → Data access → Add or remove scopes** → додайте
+   `https://www.googleapis.com/auth/calendar.readonly` → **Save**.
+3. **Google Auth Platform → Audience**:
+   - режим **Testing** — додайте свій Gmail (і тих, хто користуватиметься) у **Test users**;
+   - режим **In production** без перевірки Google — користувачі побачать попередження
+     «Google hasn't verified this app» (**Advanced → Go to Pendly**), ліміт 100 користувачів.
+     Для публічного застосунку потрібна верифікація Google.
 
 ## Запуск локально
 

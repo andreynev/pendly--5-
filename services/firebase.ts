@@ -6,6 +6,8 @@ import {
     getAuth,
     getRedirectResult,
     onAuthStateChanged as onFirebaseAuthStateChanged,
+    reauthenticateWithPopup,
+    reauthenticateWithRedirect,
     setPersistence,
     signInWithCredential,
     signInWithPopup,
@@ -45,7 +47,8 @@ if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     // Test hook for automated tests against the emulators (stripped from production builds).
     (window as unknown as Record<string, unknown>).__pendlyEmulatorSignIn = (name: string, email: string) =>
-        signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: email, email, name, email_verified: true })));
+        signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: email, email, name, email_verified: true })))
+            .then(credential => credential.user.uid);
 }
 
 const eventsCollection = (userId: string) => collection(db, 'users', userId, 'events');
@@ -77,10 +80,43 @@ const toUserError = (error: unknown): Error => {
     return new Error(AUTH_ERRORS[code] ?? 'Не вдалося увійти. Спробуйте ще раз.');
 };
 
+export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+const CALENDAR_PENDING_KEY = 'pendly_gcal_pending';
+
+export interface CalendarAccess {
+    accessToken: string;
+    email: string;
+}
+
+type CalendarAccessListener = (access: CalendarAccess) => void;
+let calendarAccessListener: CalendarAccessListener | null = null;
+let pendingRedirectAccess: CalendarAccess | null = null;
+
+/** Receives calendar access granted via a redirect flow (when popups were blocked). */
+export const onCalendarAccessFromRedirect = (listener: CalendarAccessListener) => {
+    calendarAccessListener = listener;
+    if (pendingRedirectAccess) {
+        listener(pendingRedirectAccess);
+        pendingRedirectAccess = null;
+    }
+};
+
 // Completes a redirect sign-in (used when popups are blocked) and surfaces errors.
-const redirectResult = getRedirectResult(auth).catch(error => {
-    console.error('Redirect sign-in failed:', error);
-});
+const redirectResult = getRedirectResult(auth)
+    .then(result => {
+        const wasCalendarRequest = sessionStorage.getItem(CALENDAR_PENDING_KEY) === '1';
+        sessionStorage.removeItem(CALENDAR_PENDING_KEY);
+        const token = result && wasCalendarRequest ? GoogleAuthProvider.credentialFromResult(result)?.accessToken : undefined;
+        if (result && token) {
+            const access = { accessToken: token, email: result.user.email ?? '' };
+            if (calendarAccessListener) calendarAccessListener(access);
+            else pendingRedirectAccess = access;
+        }
+    })
+    .catch(error => {
+        sessionStorage.removeItem(CALENDAR_PENDING_KEY);
+        console.error('Redirect sign-in failed:', error);
+    });
 
 export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) =>
     onFirebaseAuthStateChanged(auth, firebaseUser => {
@@ -112,6 +148,41 @@ export const signIn = async (): Promise<void> => {
 };
 
 export const signOut = (): Promise<void> => firebaseSignOut(auth);
+
+/**
+ * Asks the signed-in user for read-only access to their Google Calendar and
+ * returns a short-lived (~1 hour) OAuth access token. Must be called from a
+ * user gesture (click), because it may open a popup.
+ * Resolves to null when the page is redirecting instead (popup blocked).
+ */
+export const requestCalendarAccess = async (): Promise<CalendarAccess | null> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Спочатку увійдіть в обліковий запис.');
+    const provider = new GoogleAuthProvider();
+    provider.addScope(CALENDAR_SCOPE);
+    provider.setCustomParameters({ login_hint: user.email ?? '' });
+    try {
+        const result = await reauthenticateWithPopup(user, provider);
+        const token = GoogleAuthProvider.credentialFromResult(result)?.accessToken;
+        if (!token) throw new Error('Google не надав доступ до календаря.');
+        return { accessToken: token, email: result.user.email ?? '' };
+    } catch (error) {
+        const code = error instanceof FirebaseError ? error.code : '';
+        if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+            sessionStorage.setItem(CALENDAR_PENDING_KEY, '1');
+            await reauthenticateWithRedirect(user, provider);
+            return null;
+        }
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+            throw new Error('Підключення скасовано.');
+        }
+        if (code === 'auth/user-mismatch') {
+            throw new Error('Оберіть той самий Google-акаунт, яким ви увійшли в Pendly.');
+        }
+        if (error instanceof FirebaseError) throw toUserError(error);
+        throw error;
+    }
+};
 
 // --- DATABASE (users/{uid}/events/{eventId}) ---
 
@@ -170,6 +241,16 @@ export const addEvents = async (userId: string, eventsData: EventInput[]): Promi
 
 export const updateEvent = async (userId: string, eventId: string, eventData: EventInput): Promise<void> => {
     fireAndLog(updateDoc(doc(eventsCollection(userId), eventId), { ...toStoredFields(eventData), updatedAt: serverTimestamp() }));
+};
+
+export const updateEvents = async (userId: string, updates: { id: string; data: EventInput }[]): Promise<void> => {
+    for (let i = 0; i < updates.length; i += 450) {
+        const batch = writeBatch(db);
+        for (const { id, data } of updates.slice(i, i + 450)) {
+            batch.update(doc(eventsCollection(userId), id), { ...toStoredFields(data), updatedAt: serverTimestamp() });
+        }
+        fireAndLog(batch.commit());
+    }
 };
 
 export const deleteEvent = async (userId: string, eventId: string): Promise<void> => {

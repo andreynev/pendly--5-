@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     onAuthStateChanged, signIn, signOut, onEventsSnapshot,
     addEvent as addEventToDb, addEvents as addEventsToDb, updateEvent as updateEventInDb,
-    deleteEvent as deleteEventFromDb, restoreEvent as restoreEventInDb,
+    deleteEvent as deleteEventFromDb, restoreEvent as restoreEventInDb, updateEvents as updateEventsInDb,
+    requestCalendarAccess, onCalendarAccessFromRedirect, type CalendarAccess,
 } from './services/firebase';
-import { connectCalendar, disconnectCalendar, fetchCalendarEvents, transformGoogleEvent, getCalendarConnectionStatus } from './services/calendarApi';
+import {
+    CalendarAuthError, clearCalendarConnection, fetchCalendarEvents, getCachedAccessToken,
+    getCalendarConnection, revokeAccessToken, saveCalendarConnection, transformGoogleEvent,
+} from './services/calendarApi';
+import { planGoogleSync } from './utils/googleSync';
 import type { PendlyEvent, User, Theme, Screen, Category, EventInput } from './types';
 import { calculateNextOccurrence, daysUntil, parseLocalDate, pluralizeDays, pluralizeUk, startOfToday } from './utils/dateUtils';
 import { downloadAllEventsIcs } from './utils/calendarUtils';
@@ -107,11 +112,35 @@ const PendlyApp: React.FC = () => {
         return () => media.removeEventListener('change', apply);
     }, [theme]);
 
+    // Latest events for async sync code, which must not work from a stale list.
+    const eventsRef = useRef<PendlyEvent[] | null>(null);
     useEffect(() => {
-        getCalendarConnectionStatus().then(setCalendarConnection);
-    }, []);
+        eventsRef.current = loading ? null : events;
+    }, [events, loading]);
+
+    useEffect(() => {
+        setCalendarConnection(user ? getCalendarConnection(user.uid) : null);
+    }, [user]);
+
+    const dismissedKey = user ? `pendly_gcal_dismissed_${user.uid}` : '';
+    const getDismissed = useCallback((): Set<string> => {
+        try {
+            return new Set(JSON.parse(localStorage.getItem(dismissedKey) || '[]'));
+        } catch {
+            return new Set();
+        }
+    }, [dismissedKey]);
+    const setDismissed = useCallback((ids: Set<string>) => {
+        try {
+            localStorage.setItem(dismissedKey, JSON.stringify([...ids].slice(-2000)));
+        } catch {
+            // ignore
+        }
+    }, [dismissedKey]);
 
     const handleLogout = async () => {
+        if (user) clearCalendarConnection(user.uid, { keepConnection: true });
+        autoSyncedFor.current = null;
         await signOut();
         setActiveScreen('home');
         setSearch('');
@@ -149,14 +178,28 @@ const PendlyApp: React.FC = () => {
     const handleDeleteEvent = useCallback(async (event: PendlyEvent) => {
         if (!user) return;
         await deleteEventFromDb(user.uid, event.id);
+        // Remember deleted calendar events so the next sync doesn't bring them back.
+        if (event.source === 'google' && event.sourceEventId) {
+            setDismissed(new Set([...getDismissed(), event.sourceEventId]));
+        }
         toast(`«${event.name}» видалено`, {
-            action: { label: 'Повернути', onClick: () => { restoreEventInDb(user.uid, event); } },
+            action: {
+                label: 'Повернути',
+                onClick: () => {
+                    restoreEventInDb(user.uid, event);
+                    if (event.source === 'google' && event.sourceEventId) {
+                        const dismissed = getDismissed();
+                        dismissed.delete(event.sourceEventId);
+                        setDismissed(dismissed);
+                    }
+                },
+            },
         });
-    }, [user, toast]);
+    }, [user, toast, getDismissed, setDismissed]);
 
     const importEvents = useCallback(async (incoming: EventInput[], sourceLabel: string) => {
         if (!user) return;
-        const existingSourceIds = new Set(events.map(e => e.sourceEventId).filter(Boolean));
+        const existingSourceIds = new Set((eventsRef.current ?? events).map(e => e.sourceEventId).filter(Boolean));
         const fresh = incoming.filter(e => !e.sourceEventId || !existingSourceIds.has(e.sourceEventId));
         if (fresh.length === 0) {
             toast(`${sourceLabel}: нових подій не знайдено.`);
@@ -166,45 +209,91 @@ const PendlyApp: React.FC = () => {
         toast(`${sourceLabel}: імпортовано ${fresh.length} ${pluralizeUk(fresh.length, 'подію', 'події', 'подій')}`, { kind: 'success' });
     }, [user, events, toast]);
 
-    const handleSyncNow = useCallback(async () => {
+    const syncGoogleCalendar = useCallback(async (accessToken: string, { silent = false } = {}) => {
+        if (!user) return;
+        const existing = eventsRef.current;
+        if (!existing) return; // events not loaded yet; avoid duplicate imports
+        const dismissed = getDismissed();
+        const incoming = (await fetchCalendarEvents(accessToken))
+            .map(transformGoogleEvent)
+            .filter((e): e is EventInput => e !== null && !dismissed.has(e.sourceEventId!));
+        const { toAdd, toUpdate } = planGoogleSync(existing, incoming);
+        await addEventsToDb(user.uid, toAdd);
+        await updateEventsInDb(user.uid, toUpdate);
+        if (toAdd.length === 0 && toUpdate.length === 0) {
+            if (!silent) toast('Google Calendar: усе актуально.');
+            return;
+        }
+        const parts = [];
+        if (toAdd.length) parts.push(`додано ${toAdd.length} ${pluralizeUk(toAdd.length, 'подію', 'події', 'подій')}`);
+        if (toUpdate.length) parts.push(`оновлено ${toUpdate.length}`);
+        toast(`Google Calendar: ${parts.join(', ')}`, { kind: 'success' });
+    }, [user, toast, getDismissed]);
+
+    const runSync = useCallback(async (getToken: () => Promise<string | null>, silent = false) => {
         if (!user) return;
         setIsSyncing(true);
         try {
-            const googleEvents = await fetchCalendarEvents();
-            await importEvents(googleEvents.map(transformGoogleEvent), 'Google Calendar');
+            const token = await getToken();
+            if (token) await syncGoogleCalendar(token, { silent });
         } catch (error) {
-            console.error("Error syncing calendar:", error);
-            toast(`Не вдалося синхронізувати з календарем. ${error instanceof Error ? error.message : ''}`, { kind: 'error' });
+            console.error('Error syncing calendar:', error);
+            if (error instanceof CalendarAuthError) clearCalendarConnection(user.uid, { keepConnection: true });
+            if (!silent) toast(error instanceof Error ? error.message : 'Не вдалося синхронізувати з календарем.', { kind: 'error' });
         } finally {
             setIsSyncing(false);
         }
-    }, [user, importEvents, toast]);
+    }, [user, syncGoogleCalendar, toast]);
 
-    const handleConnectCalendar = async () => {
-        setIsSyncing(true);
-        try {
-            const email = await connectCalendar();
-            setCalendarConnection(email);
-        } catch (error) {
-            console.error("Error connecting calendar:", error);
-            toast(`Не вдалося підключити календар. ${error instanceof Error ? error.message : ''}`, { kind: 'error' });
-            setIsSyncing(false);
-            return;
-        }
-        // Initial sync after connecting; it manages isSyncing itself.
-        await handleSyncNow();
-    };
+    const grantCalendarAccess = useCallback((access: CalendarAccess): string => {
+        if (!user) return access.accessToken;
+        saveCalendarConnection(user.uid, access.email, access.accessToken);
+        setCalendarConnection(access.email);
+        return access.accessToken;
+    }, [user]);
+
+    // Must be called from a click: it may open Google's consent popup.
+    const handleSyncNow = () => runSync(async () => {
+        if (!user) return null;
+        const cached = getCachedAccessToken(user.uid);
+        if (cached) return cached;
+        const access = await requestCalendarAccess();
+        return access ? grantCalendarAccess(access) : null;
+    });
+
+    const handleConnectCalendar = () => runSync(async () => {
+        const access = await requestCalendarAccess();
+        return access ? grantCalendarAccess(access) : null;
+    });
 
     const handleDisconnect = async () => {
-        setIsSyncing(true);
-        try {
-            await disconnectCalendar();
-            setCalendarConnection(null);
-            toast('Синхронізацію з календарем відключено.');
-        } finally {
-            setIsSyncing(false);
-        }
+        if (!user) return;
+        const token = getCachedAccessToken(user.uid);
+        clearCalendarConnection(user.uid);
+        setCalendarConnection(null);
+        if (token) await revokeAccessToken(token);
+        toast('Google Calendar відключено. Імпортовані події залишились у Pendly.');
     };
+
+    // Access granted through a redirect (popup was blocked) lands here after reload.
+    useEffect(() => {
+        if (!user) return;
+        onCalendarAccessFromRedirect(access => {
+            const token = grantCalendarAccess(access);
+            const trySync = () => (eventsRef.current ? runSync(async () => token) : setTimeout(trySync, 300));
+            trySync();
+        });
+    }, [user, grantCalendarAccess, runSync]);
+
+    // Quietly refresh from Google when the app opens, if we still hold a valid token.
+    const autoSyncedFor = useRef<string | null>(null);
+    useEffect(() => {
+        if (!user || loading || !calendarConnection || autoSyncedFor.current === user.uid) return;
+        const token = getCachedAccessToken(user.uid);
+        if (!token) return;
+        autoSyncedFor.current = user.uid;
+        runSync(async () => token, true);
+    }, [user, loading, calendarConnection, runSync]);
 
     const handleImportIcs = async (file: File) => {
         try {
