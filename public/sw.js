@@ -1,11 +1,12 @@
-const CACHE_NAME = 'pendly-v3';
+const CACHE_NAME = 'pendly-v4';
 // Core files for the app shell. Hashed build assets are cached on first use.
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icons/icon.svg',
-  '/icons/icon-maskable.svg',
+  '/icons/icon-192.png',
+  '/icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -32,6 +33,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
+  // Leave Firebase (Firestore streams, auth handlers under /__/) and other APIs to the network.
+  if ((!isSameOrigin && !isFont) || url.pathname.startsWith('/__/')) return;
 
   // Network-first for page navigations so users always get the latest shell.
   if (request.mode === 'navigate') {

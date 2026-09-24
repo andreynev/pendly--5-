@@ -76,11 +76,18 @@ const PendlyApp: React.FC = () => {
         }
 
         setLoading(true);
-        return onEventsSnapshot(user.uid, (snapshot) => {
-            setEvents(snapshot);
-            setLoading(false);
-        });
-    }, [user]);
+        return onEventsSnapshot(
+            user.uid,
+            (snapshot) => {
+                setEvents(snapshot);
+                setLoading(false);
+            },
+            (error) => {
+                setLoading(false);
+                toast(error.message, { kind: 'error' });
+            },
+        );
+    }, [user, toast]);
 
     useEffect(() => {
         const media = window.matchMedia('(prefers-color-scheme: dark)');
