@@ -2,61 +2,31 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pendly - Your Events</title>
-    <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
-    <meta name="theme-color" content="#8b5cf6"/>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="./assets/icons/icon-192.svg">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Pendly — ваші події</title>
+    <meta name="description" content="Мінімалістичний застосунок для відліку днів до важливих подій." />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script>
-    tailwind.config = {
-        darkMode: 'class',
-        theme: {
-            extend: {
-                fontFamily: {
-                    sans: ['Inter', 'sans-serif'],
-                },
-                colors: {
-                  violet: {
-                    100: '#ede9fe',
-                    500: '#8b5cf6',
-                    900: '#4c1d95',
-                  },
-                  slate: {
-                    200: '#e2e8f0',
-                    800: '#1e293b',
-                    900: '#0f172a'
-                  }
-                },
-                borderRadius: {
-                  '3xl': '1.5rem',
-                }
-            }
-        }
-    }
+      // Apply the saved theme before first paint to avoid a light/dark flash.
+      (function () {
+        try {
+          var t = localStorage.getItem('theme') || 'system';
+          var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
     </script>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.10.0",
-    "ical.js": "https://esm.sh/ical.js@^2.2.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-white dark:bg-slate-900">
+<body class="bg-slate-100 dark:bg-slate-900">
     <div id="root"></div>
-    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
-    <script type="text/babel" data-type="module" src="./index.tsx"></script>
-<script type="module" src="/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

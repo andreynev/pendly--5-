@@ -1,4 +1,3 @@
-
 import type { Category, Repetition } from './types';
 
 export const CATEGORIES: { value: Category; label: string; color: string }[] = [
@@ -15,3 +14,6 @@ export const REPETITIONS: { value: Repetition; label: string }[] = [
   { value: 'monthly', label: 'Щомісяця' },
   { value: 'yearly', label: 'Щороку' },
 ];
+
+/** AI quick-add is only available when a Gemini API key is configured at build time. */
+export const IS_AI_ENABLED = Boolean(process.env.API_KEY);

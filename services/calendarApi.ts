@@ -1,4 +1,5 @@
-import type { PendlyEvent, Repetition, Category } from '../types';
+import type { Repetition, Category, EventInput } from '../types';
+import { toLocalDateString } from '../utils/dateUtils';
 
 // Simulate the structure of a Google Calendar API event resource
 interface GoogleCalendarEvent {
@@ -29,7 +30,7 @@ const MOCK_CALENDAR_EVENTS: GoogleCalendarEvent[] = [
     {
         id: 'gcal_event_2',
         summary: 'Відпустка',
-        start: { date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }, // 30 days from now
+        start: { date: toLocalDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) }, // 30 days from now
     },
     {
         id: 'gcal_event_3',
@@ -91,17 +92,22 @@ const getRepetitionFromRRule = (rrule?: string[]): Repetition => {
     return 'none';
 };
 
-export const transformGoogleEvent = (gEvent: GoogleCalendarEvent): Omit<PendlyEvent, 'id'> => {
-    const isAllDay = !!gEvent.start.date;
-    const startDate = new Date(gEvent.start.dateTime || gEvent.start.date!);
-
-    const date = startDate.toISOString().split('T')[0];
-    const time = isAllDay ? '' : startDate.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+export const transformGoogleEvent = (gEvent: GoogleCalendarEvent): EventInput => {
+    // All-day events carry a plain "YYYY-MM-DD" date; parsing it with new Date() would shift it to UTC.
+    let date: string;
+    let time = '';
+    if (gEvent.start.date) {
+        date = gEvent.start.date;
+    } else {
+        const startDate = new Date(gEvent.start.dateTime!);
+        date = toLocalDateString(startDate);
+        time = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+    }
 
     return {
         name: gEvent.summary,
-        date: date,
-        time: time,
+        date,
+        time,
         location: gEvent.location || '',
         // A real app might try to infer this, but 'other' is a safe default
         category: 'other' as Category,

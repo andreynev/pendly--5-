@@ -1,4 +1,3 @@
-
 export interface User {
   uid: string;
   displayName: string | null;
@@ -18,9 +17,11 @@ export interface PendlyEvent {
   notes?: string;
   repetition: Repetition;
   displayDate?: Date; // Added for internal processing, not in DB
-  source?: 'google'; // To identify synced events
+  source?: 'google' | 'ics'; // To identify synced/imported events
   sourceEventId?: string; // To prevent duplicates
 }
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Screen = 'home' | 'archive' | 'settings';
+
+export type EventInput = Omit<PendlyEvent, 'id' | 'displayDate'>;

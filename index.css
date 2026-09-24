@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-violet-100: #ede9fe;
+  --color-violet-500: #8b5cf6;
+  --color-violet-900: #4c1d95;
+  --color-slate-200: #e2e8f0;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+}
+
+@keyframes pendly-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: pendly-fade-in 0.2s ease-out;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}

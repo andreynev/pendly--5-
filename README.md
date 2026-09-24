@@ -1,14 +1,29 @@
-# Run and deploy your AI Studio app
+# Pendly
 
-This contains everything you need to run your app locally.
+Мінімалістичний PWA-застосунок для відліку днів до важливих подій.
 
-## Run Locally
+## Можливості
 
-**Prerequisites:**  Node.js
+- Відлік днів до подій з повтореннями (щотижня / щомісяця / щороку)
+- Додавання, редагування (натисніть на подію) та видалення з можливістю «Повернути»
+- Пошук і фільтр за категоріями, архів минулих подій
+- Імпорт/експорт `.ics` (Apple, Outlook, Google), експорт окремої події в календар
+- Швидке додавання подій природною мовою через Gemini (якщо задано ключ)
+- Світла / темна / системна тема, робота офлайн (service worker)
 
+> Авторизація та синхронізація з Google Calendar поки що імітуються (`services/firebase.ts`,
+> `services/calendarApi.ts`); події зберігаються в `localStorage` браузера.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Запуск локально
+
+**Потрібно:** Node.js 20+
+
+1. `npm install`
+2. (Необов'язково) задайте `GEMINI_API_KEY` у `.env.local`, щоб увімкнути AI-швидке додавання
+3. `npm run dev`
+
+## Скрипти
+
+- `npm run build` — перевірка типів і продакшн-збірка в `dist/`
+- `npm test` — юніт-тести (дати, повторення, ICS)
+- `npm run preview` — перегляд зібраної версії

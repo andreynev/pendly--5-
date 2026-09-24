@@ -1,0 +1,35 @@
+{
+  "name": "Pendly",
+  "short_name": "Pendly",
+  "lang": "uk",
+  "description": "Мінімалістичний застосунок для відліку днів до важливих подій.",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay"
+  ],
+  "background_color": "#0f172a",
+  "theme_color": "#8b5cf6",
+  "launch_handler": {
+    "client_mode": [
+      "navigate-existing",
+      "auto"
+    ]
+  },
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
