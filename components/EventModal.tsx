@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { PendlyEvent, Category, Repetition, EventInput } from '../types';
-import { CATEGORIES, REPETITIONS, IS_AI_ENABLED } from '../constants';
+import { CATEGORIES, REPETITIONS } from '../constants';
 import { toLocalDateString } from '../utils/dateUtils';
-import { SparklesIcon, SpinnerIcon } from './Icons';
 
 interface EventModalProps {
     isOpen: boolean;
@@ -21,8 +20,6 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
     const [repetition, setRepetition] = useState<Repetition>('none');
     const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const [aiPrompt, setAiPrompt] = useState('');
-    const [isParsing, setIsParsing] = useState(false);
     const nameInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -35,7 +32,6 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
         setNotes(event?.notes ?? '');
         setRepetition(event?.repetition ?? 'none');
         setError('');
-        setAiPrompt('');
         setIsSaving(false);
         // Focus after the modal has rendered.
         setTimeout(() => nameInputRef.current?.focus(), 0);
@@ -54,26 +50,6 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
             document.body.style.overflow = previousOverflow;
         };
     }, [isOpen, onClose]);
-
-    const handleAIParse = async () => {
-        if (!aiPrompt.trim()) return;
-        setIsParsing(true);
-        setError('');
-        try {
-            const { parseEventWithAI } = await import('../services/gemini');
-            const parsed = await parseEventWithAI(aiPrompt);
-            if (parsed.name) setName(parsed.name);
-            if (parsed.date) setDate(parsed.date);
-            setTime(parsed.time ?? '');
-            if (parsed.location) setLocation(parsed.location);
-            if (parsed.category) setCategory(parsed.category);
-            if (parsed.notes) setNotes(parsed.notes);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Не вдалося розпізнати подію.');
-        } finally {
-            setIsParsing(false);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -119,33 +95,6 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
                 <h2 id="event-modal-title" className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
                     {event ? 'Редагувати подію' : 'Нова подія'}
                 </h2>
-
-                {IS_AI_ENABLED && !event && (
-                    <div className="mb-6 p-4 rounded-xl bg-violet-100/60 dark:bg-violet-900/30">
-                        <label htmlFor="ai-prompt" className="flex items-center gap-2 text-sm font-semibold text-violet-900 dark:text-violet-300">
-                            <SparklesIcon className="w-4 h-4" /> Швидке додавання
-                        </label>
-                        <div className="flex gap-2 mt-2">
-                            <input
-                                id="ai-prompt"
-                                type="text"
-                                value={aiPrompt}
-                                onChange={e => setAiPrompt(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAIParse(); } }}
-                                placeholder="напр. «Зустріч з Олею в п'ятницю о 15:00»"
-                                className="flex-grow min-w-0 p-2.5 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleAIParse}
-                                disabled={isParsing || !aiPrompt.trim()}
-                                className="flex items-center gap-1 px-3 rounded-md bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isParsing ? <SpinnerIcon /> : 'Заповнити'}
-                            </button>
-                        </div>
-                    </div>
-                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     <div>
