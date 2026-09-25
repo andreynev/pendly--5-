@@ -1,4 +1,3 @@
-
 import type { Category, Repetition } from './types';
 
 export const CATEGORIES: { value: Category; label: string; color: string }[] = [

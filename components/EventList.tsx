@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { PendlyEvent } from '../types';
 import EventItem from './EventItem';
@@ -8,11 +7,13 @@ import EventItemSkeleton from './EventItemSkeleton';
 interface EventListProps {
     events: PendlyEvent[];
     isArchive: boolean;
-    onDelete: (id: string) => void;
+    onDelete: (event: PendlyEvent) => void;
+    onEdit: (event: PendlyEvent) => void;
     loading: boolean;
+    isFiltered?: boolean;
 }
 
-const EventList: React.FC<EventListProps> = ({ events, isArchive, onDelete, loading }) => {
+const EventList: React.FC<EventListProps> = ({ events, isArchive, onDelete, onEdit, loading, isFiltered = false }) => {
     if (loading) {
         return (
             <div className="p-2 sm:p-4 space-y-3">
@@ -22,13 +23,13 @@ const EventList: React.FC<EventListProps> = ({ events, isArchive, onDelete, load
     }
 
     if (events.length === 0) {
-        return <EmptyState isArchive={isArchive} />;
+        return <EmptyState isArchive={isArchive} isFiltered={isFiltered} />;
     }
 
     return (
         <div className="p-2 sm:p-4 space-y-3">
             {events.map(event => (
-                <EventItem key={event.id} event={event} isArchive={isArchive} onDelete={onDelete} />
+                <EventItem key={event.id} event={event} isArchive={isArchive} onDelete={onDelete} onEdit={onEdit} />
             ))}
         </div>
     );
