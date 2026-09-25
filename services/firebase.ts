@@ -4,6 +4,7 @@ import {
     connectAuthEmulator,
     getAuth,
     getRedirectResult,
+    deleteUser,
     onAuthStateChanged as onFirebaseAuthStateChanged,
     reauthenticateWithPopup,
     reauthenticateWithRedirect,
@@ -16,6 +17,7 @@ import {
     collection,
     connectFirestoreEmulator,
     deleteDoc,
+    getDocsFromServer,
     doc,
     initializeFirestore,
     onSnapshot,
@@ -284,4 +286,69 @@ export const deleteEvent = async (userId: string, eventId: string): Promise<void
 /** Re-inserts a previously deleted event with the same id (used by "undo"). */
 export const restoreEvent = async (userId: string, event: PendlyEvent): Promise<void> => {
     fireAndLog(setDoc(doc(eventsCollection(userId), event.id), { ...toStoredFields(event), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+};
+
+// --- ACCOUNT DELETION ---
+
+// Firebase only lets a user delete their account shortly after signing in.
+const RECENT_SIGN_IN_MS = 4 * 60 * 1000;
+
+const needsFreshSignIn = (): boolean => {
+    const lastSignIn = auth.currentUser?.metadata.lastSignInTime;
+    return !lastSignIn || Date.now() - new Date(lastSignIn).getTime() > RECENT_SIGN_IN_MS;
+};
+
+/**
+ * Permanently deletes the signed-in user's events and Firebase account.
+ * Must be called directly from a click: it may open Google's sign-in popup
+ * to confirm the user's identity, which mobile browsers only allow from a tap.
+ */
+export const deleteAccount = async (): Promise<void> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Спочатку увійдіть в обліковий запис.');
+
+    const reauthenticate = async () => {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ login_hint: user.email ?? '', prompt: 'select_account' });
+        try {
+            await reauthenticateWithPopup(user, provider);
+        } catch (error) {
+            const code = error instanceof FirebaseError ? error.code : '';
+            if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+                throw new Error('Видалення скасовано.');
+            }
+            if (code === 'auth/user-mismatch') {
+                throw new Error('Оберіть той самий Google-акаунт, яким ви увійшли в Pendly.');
+            }
+            throw toUserError(error);
+        }
+    };
+
+    if (needsFreshSignIn()) await reauthenticate();
+
+    // Delete the data first: once the account is gone, the rules no longer allow it.
+    const snapshot = await getDocsFromServer(eventsCollection(user.uid));
+    for (let i = 0; i < snapshot.docs.length; i += 450) {
+        const batch = writeBatch(db);
+        snapshot.docs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
+        await batch.commit();
+    }
+
+    try {
+        await deleteUser(user);
+    } catch (error) {
+        if (error instanceof FirebaseError && error.code === 'auth/requires-recent-login') {
+            throw new Error('Для безпеки увійдіть знову й повторіть видалення. Ваші події вже видалено.');
+        }
+        throw error;
+    }
+
+    try {
+        Object.keys(localStorage)
+            .filter(key => key.includes(user.uid))
+            .forEach(key => localStorage.removeItem(key));
+        sessionStorage.clear();
+    } catch {
+        // Storage unavailable: nothing to clean up.
+    }
 };

@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import type { Theme, User } from '../types';
+import DeleteAccountDialog from './DeleteAccountDialog';
 import { GoogleIcon, SpinnerIcon, SyncIcon, DisconnectIcon, ImportIcon, CalendarPlusIcon } from './Icons';
 
 interface SettingsScreenProps {
@@ -15,6 +16,7 @@ interface SettingsScreenProps {
     onExportAll: () => void;
     eventCount: number;
     onLogout: () => void;
+    onDeleteAccount: () => Promise<void>;
 }
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -28,9 +30,10 @@ const secondaryButton = 'w-full flex items-center justify-center gap-2 bg-slate-
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({
     user, theme, onThemeChange, calendarConnection, isSyncing, onConnectCalendar, onSyncNow,
-    onDisconnect, onImportIcs, onExportAll, eventCount, onLogout,
+    onDisconnect, onImportIcs, onExportAll, eventCount, onLogout, onDeleteAccount,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -124,6 +127,22 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <button onClick={onLogout} className="w-full bg-violet-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-violet-600 transition-colors text-base">
                 Вийти
             </button>
+
+            <div className="mt-8 flex flex-col items-center gap-3 text-sm">
+                <button onClick={() => setIsDeleteOpen(true)} className="text-red-600 dark:text-red-400 hover:underline">
+                    Видалити акаунт
+                </button>
+                <a href="/privacy.html" target="_blank" rel="noopener" className="text-slate-500 dark:text-slate-400 hover:underline">
+                    Політика конфіденційності
+                </a>
+            </div>
+
+            <DeleteAccountDialog
+                isOpen={isDeleteOpen}
+                eventCount={eventCount}
+                onCancel={() => setIsDeleteOpen(false)}
+                onConfirm={onDeleteAccount}
+            />
         </div>
     );
 };

@@ -2,8 +2,7 @@ import React from 'react';
 import type { PendlyEvent } from '../types';
 import { CATEGORIES, REPETITIONS } from '../constants';
 import { daysUntil, formatDate, parseLocalDate, pluralizeDays } from '../utils/dateUtils';
-import { downloadIcsFile } from '../utils/calendarUtils';
-import { TrashIcon, CalendarPlusIcon, GoogleCalendarIcon, RepeatIcon } from './Icons';
+import { TrashIcon, GoogleCalendarIcon, RepeatIcon } from './Icons';
 
 interface EventItemProps {
     event: PendlyEvent;
@@ -60,7 +59,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
                 )}
             </div>
             <div className="flex-grow min-w-0">
-                <h3 className={`pr-[4.5rem] text-lg sm:text-xl font-bold truncate ${isArchive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>{event.name}</h3>
+                <h3 className={`pr-8 text-lg sm:text-xl font-bold leading-snug line-clamp-2 break-words ${isArchive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>{event.name}</h3>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                     {categoryInfo && <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${categoryInfo.color}`}>{categoryInfo.label}</span>}
                     {event.repetition !== 'none' && (
@@ -80,17 +79,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
                 </p>
                 {event.notes && <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 italic truncate">{event.notes}</p>}
             </div>
-            <div className="absolute top-3 right-3 flex items-center gap-1">
-                {!isArchive && (
-                    <button
-                        onClick={e => { stop(e); downloadIcsFile(event); }}
-                        className="p-2 rounded-full text-slate-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        aria-label="Додати в календар"
-                        title="Додати в календар"
-                    >
-                        <CalendarPlusIcon />
-                    </button>
-                )}
+            <div className="absolute top-2 right-2">
                 <button
                     onClick={e => { stop(e); onDelete(event); }}
                     className="p-2 rounded-full text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400 transition-colors"

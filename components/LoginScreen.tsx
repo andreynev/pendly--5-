@@ -45,6 +45,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 {isSigningIn ? 'Вхід…' : 'Увійти через Google'}
             </button>
             {error && <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            <a href="/privacy.html" className="mt-10 text-sm text-slate-400 hover:underline">Політика конфіденційності</a>
         </div>
     );
 };
