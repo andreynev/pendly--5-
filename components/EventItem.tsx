@@ -59,8 +59,8 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
                     </>
                 )}
             </div>
-            <div className="flex-grow min-w-0 pr-16">
-                <h3 className={`text-lg sm:text-xl font-bold truncate ${isArchive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>{event.name}</h3>
+            <div className="flex-grow min-w-0">
+                <h3 className={`pr-[4.5rem] text-lg sm:text-xl font-bold truncate ${isArchive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>{event.name}</h3>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                     {categoryInfo && <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${categoryInfo.color}`}>{categoryInfo.label}</span>}
                     {event.repetition !== 'none' && (
