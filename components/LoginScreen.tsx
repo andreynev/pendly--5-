@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { takeRedirectError, waitForRedirectResult } from '../services/firebase';
 import { GoogleIcon, SpinnerIcon } from './Icons';
 
 interface LoginScreenProps {
@@ -8,6 +9,16 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [error, setError] = useState('');
+
+    // Show why a redirect sign-in (used on phones) failed instead of silently returning here.
+    useEffect(() => {
+        let active = true;
+        waitForRedirectResult().then(() => {
+            const redirectError = takeRedirectError();
+            if (active && redirectError) setError(redirectError.message);
+        });
+        return () => { active = false; };
+    }, []);
 
     const handleLogin = async () => {
         setIsSigningIn(true);
@@ -34,6 +45,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 {isSigningIn ? 'Вхід…' : 'Увійти через Google'}
             </button>
             {error && <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            <a href="/privacy.html" className="mt-10 text-sm text-slate-400 hover:underline">Політика конфіденційності</a>
         </div>
     );
 };

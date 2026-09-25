@@ -1,14 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import {
     GoogleAuthProvider,
-    browserLocalPersistence,
     connectAuthEmulator,
     getAuth,
     getRedirectResult,
+    deleteUser,
     onAuthStateChanged as onFirebaseAuthStateChanged,
     reauthenticateWithPopup,
     reauthenticateWithRedirect,
-    setPersistence,
     signInWithCredential,
     signInWithPopup,
     signInWithRedirect,
@@ -18,6 +17,7 @@ import {
     collection,
     connectFirestoreEmulator,
     deleteDoc,
+    getDocsFromServer,
     doc,
     initializeFirestore,
     onSnapshot,
@@ -101,6 +101,14 @@ export const onCalendarAccessFromRedirect = (listener: CalendarAccessListener) =
     }
 };
 
+let redirectError: Error | null = null;
+/** Error from a failed redirect sign-in, shown once on the login screen. */
+export const takeRedirectError = (): Error | null => {
+    const error = redirectError;
+    redirectError = null;
+    return error;
+};
+
 // Completes a redirect sign-in (used when popups are blocked) and surfaces errors.
 const redirectResult = getRedirectResult(auth)
     .then(result => {
@@ -116,6 +124,7 @@ const redirectResult = getRedirectResult(auth)
     .catch(error => {
         sessionStorage.removeItem(CALENDAR_PENDING_KEY);
         console.error('Redirect sign-in failed:', error);
+        redirectError = toUserError(error);
     });
 
 export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) =>
@@ -125,17 +134,26 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
             : null);
     });
 
+/** True when running as an installed app (home-screen PWA), where popups don't work reliably. */
+const isStandalone = (): boolean =>
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+// Must be called directly from a click handler. Anything awaited before the
+// popup opens makes mobile browsers treat it as unsolicited and block it.
 export const signIn = async (): Promise<void> => {
-    await redirectResult;
-    await setPersistence(auth, browserLocalPersistence);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
+        if (isStandalone()) {
+            await signInWithRedirect(auth, provider);
+            return;
+        }
         await signInWithPopup(auth, provider);
     } catch (error) {
         const code = error instanceof FirebaseError ? error.code : '';
         if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-            // Installed PWAs on iOS and some browsers block popups; fall back to a full-page redirect.
+            // Popup blocked: fall back to a full-page redirect.
             await signInWithRedirect(auth, provider);
             return;
         }
@@ -146,6 +164,9 @@ export const signIn = async (): Promise<void> => {
         throw toUserError(error);
     }
 };
+
+/** Resolves once a pending redirect sign-in (if any) has been processed. */
+export const waitForRedirectResult = (): Promise<void> => redirectResult;
 
 export const signOut = (): Promise<void> => firebaseSignOut(auth);
 
@@ -162,6 +183,11 @@ export const requestCalendarAccess = async (): Promise<CalendarAccess | null> =>
     provider.addScope(CALENDAR_SCOPE);
     provider.setCustomParameters({ login_hint: user.email ?? '' });
     try {
+        if (isStandalone()) {
+            sessionStorage.setItem(CALENDAR_PENDING_KEY, '1');
+            await reauthenticateWithRedirect(user, provider);
+            return null;
+        }
         const result = await reauthenticateWithPopup(user, provider);
         const token = GoogleAuthProvider.credentialFromResult(result)?.accessToken;
         if (!token) throw new Error('Google не надав доступ до календаря.');
@@ -260,4 +286,69 @@ export const deleteEvent = async (userId: string, eventId: string): Promise<void
 /** Re-inserts a previously deleted event with the same id (used by "undo"). */
 export const restoreEvent = async (userId: string, event: PendlyEvent): Promise<void> => {
     fireAndLog(setDoc(doc(eventsCollection(userId), event.id), { ...toStoredFields(event), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+};
+
+// --- ACCOUNT DELETION ---
+
+// Firebase only lets a user delete their account shortly after signing in.
+const RECENT_SIGN_IN_MS = 4 * 60 * 1000;
+
+const needsFreshSignIn = (): boolean => {
+    const lastSignIn = auth.currentUser?.metadata.lastSignInTime;
+    return !lastSignIn || Date.now() - new Date(lastSignIn).getTime() > RECENT_SIGN_IN_MS;
+};
+
+/**
+ * Permanently deletes the signed-in user's events and Firebase account.
+ * Must be called directly from a click: it may open Google's sign-in popup
+ * to confirm the user's identity, which mobile browsers only allow from a tap.
+ */
+export const deleteAccount = async (): Promise<void> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Спочатку увійдіть в обліковий запис.');
+
+    const reauthenticate = async () => {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ login_hint: user.email ?? '', prompt: 'select_account' });
+        try {
+            await reauthenticateWithPopup(user, provider);
+        } catch (error) {
+            const code = error instanceof FirebaseError ? error.code : '';
+            if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+                throw new Error('Видалення скасовано.');
+            }
+            if (code === 'auth/user-mismatch') {
+                throw new Error('Оберіть той самий Google-акаунт, яким ви увійшли в Pendly.');
+            }
+            throw toUserError(error);
+        }
+    };
+
+    if (needsFreshSignIn()) await reauthenticate();
+
+    // Delete the data first: once the account is gone, the rules no longer allow it.
+    const snapshot = await getDocsFromServer(eventsCollection(user.uid));
+    for (let i = 0; i < snapshot.docs.length; i += 450) {
+        const batch = writeBatch(db);
+        snapshot.docs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
+        await batch.commit();
+    }
+
+    try {
+        await deleteUser(user);
+    } catch (error) {
+        if (error instanceof FirebaseError && error.code === 'auth/requires-recent-login') {
+            throw new Error('Для безпеки увійдіть знову й повторіть видалення. Ваші події вже видалено.');
+        }
+        throw error;
+    }
+
+    try {
+        Object.keys(localStorage)
+            .filter(key => key.includes(user.uid))
+            .forEach(key => localStorage.removeItem(key));
+        sessionStorage.clear();
+    } catch {
+        // Storage unavailable: nothing to clean up.
+    }
 };
