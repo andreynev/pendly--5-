@@ -1,14 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import {
     GoogleAuthProvider,
-    browserLocalPersistence,
     connectAuthEmulator,
     getAuth,
     getRedirectResult,
     onAuthStateChanged as onFirebaseAuthStateChanged,
     reauthenticateWithPopup,
     reauthenticateWithRedirect,
-    setPersistence,
     signInWithCredential,
     signInWithPopup,
     signInWithRedirect,
@@ -101,6 +99,14 @@ export const onCalendarAccessFromRedirect = (listener: CalendarAccessListener) =
     }
 };
 
+let redirectError: Error | null = null;
+/** Error from a failed redirect sign-in, shown once on the login screen. */
+export const takeRedirectError = (): Error | null => {
+    const error = redirectError;
+    redirectError = null;
+    return error;
+};
+
 // Completes a redirect sign-in (used when popups are blocked) and surfaces errors.
 const redirectResult = getRedirectResult(auth)
     .then(result => {
@@ -116,6 +122,7 @@ const redirectResult = getRedirectResult(auth)
     .catch(error => {
         sessionStorage.removeItem(CALENDAR_PENDING_KEY);
         console.error('Redirect sign-in failed:', error);
+        redirectError = toUserError(error);
     });
 
 export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) =>
@@ -125,17 +132,26 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
             : null);
     });
 
+/** True when running as an installed app (home-screen PWA), where popups don't work reliably. */
+const isStandalone = (): boolean =>
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+// Must be called directly from a click handler. Anything awaited before the
+// popup opens makes mobile browsers treat it as unsolicited and block it.
 export const signIn = async (): Promise<void> => {
-    await redirectResult;
-    await setPersistence(auth, browserLocalPersistence);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
+        if (isStandalone()) {
+            await signInWithRedirect(auth, provider);
+            return;
+        }
         await signInWithPopup(auth, provider);
     } catch (error) {
         const code = error instanceof FirebaseError ? error.code : '';
         if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-            // Installed PWAs on iOS and some browsers block popups; fall back to a full-page redirect.
+            // Popup blocked: fall back to a full-page redirect.
             await signInWithRedirect(auth, provider);
             return;
         }
@@ -146,6 +162,9 @@ export const signIn = async (): Promise<void> => {
         throw toUserError(error);
     }
 };
+
+/** Resolves once a pending redirect sign-in (if any) has been processed. */
+export const waitForRedirectResult = (): Promise<void> => redirectResult;
 
 export const signOut = (): Promise<void> => firebaseSignOut(auth);
 
@@ -162,6 +181,11 @@ export const requestCalendarAccess = async (): Promise<CalendarAccess | null> =>
     provider.addScope(CALENDAR_SCOPE);
     provider.setCustomParameters({ login_hint: user.email ?? '' });
     try {
+        if (isStandalone()) {
+            sessionStorage.setItem(CALENDAR_PENDING_KEY, '1');
+            await reauthenticateWithRedirect(user, provider);
+            return null;
+        }
         const result = await reauthenticateWithPopup(user, provider);
         const token = GoogleAuthProvider.credentialFromResult(result)?.accessToken;
         if (!token) throw new Error('Google не надав доступ до календаря.');
