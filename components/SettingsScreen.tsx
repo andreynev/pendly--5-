@@ -81,7 +81,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({
                         <p className="text-sm text-green-600 dark:text-green-400">Підключено: <span className="font-semibold break-all">{calendarConnection}</span></p>
                         <div className="flex items-center gap-2">
                             <button onClick={onSyncNow} disabled={isSyncing} className={secondaryButton}>
-                                {isSyncing ? <><SpinnerIcon /> Синхронізація...</> : <><SyncIcon /> Синхронізувати</>}
+                                {isSyncing ? <><SyncIcon className="h-5 w-5 animate-spin" /> Синхронізація…</> : <><SyncIcon /> Синхронізувати</>}
                             </button>
                             <button
                                 onClick={onDisconnect}
