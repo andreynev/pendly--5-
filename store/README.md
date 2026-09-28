@@ -9,6 +9,7 @@
 | `screenshots/*.png` | Main store listing → Phone screenshots (1080×1920) |
 
 Посилання:
+- Контактний email (для Play Console → Store settings): andreynev@gmail.com
 - Політика конфіденційності: https://pendly-c0b1f.web.app/privacy.html
 - Видалення акаунта: https://pendly-c0b1f.web.app/delete-account.html
 
