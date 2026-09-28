@@ -38,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ userName, nextEvent, today }) => {
             <div className="relative z-10 mx-auto max-w-2xl">
                 <h1 className="text-3xl sm:text-4xl font-bold drop-shadow-sm">Привіт, {userName.split(' ')[0]}!</h1>
                 <p className="text-base opacity-90 mt-1 drop-shadow-sm first-letter:uppercase">{todayLabel}</p>
-                {nextLabel && <p className="text-sm font-medium mt-2 drop-shadow-sm truncate">{nextLabel}</p>}
+                {nextLabel && <p className="text-sm font-medium mt-2 drop-shadow-sm line-clamp-2">{nextLabel}</p>}
             </div>
         </header>
     );

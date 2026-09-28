@@ -3,7 +3,7 @@ import {
     onAuthStateChanged, signIn, signOut, onEventsSnapshot,
     addEvent as addEventToDb, addEvents as addEventsToDb, updateEvent as updateEventInDb,
     deleteEvent as deleteEventFromDb, restoreEvent as restoreEventInDb, updateEvents as updateEventsInDb,
-    requestCalendarAccess, onCalendarAccessFromRedirect, type CalendarAccess,
+    requestCalendarAccess, onCalendarAccessFromRedirect, type CalendarAccess, deleteAccount,
 } from './services/firebase';
 import {
     CalendarAuthError, clearCalendarConnection, fetchCalendarEvents, getCachedAccessToken,
@@ -145,6 +145,18 @@ const PendlyApp: React.FC = () => {
         setActiveScreen('home');
         setSearch('');
         setCategoryFilter('all');
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!user) return;
+        const token = getCachedAccessToken(user.uid);
+        await deleteAccount();
+        if (token) revokeAccessToken(token);
+        autoSyncedFor.current = null;
+        setActiveScreen('home');
+        setSearch('');
+        setCategoryFilter('all');
+        toast('Акаунт і всі події видалено.', { kind: 'success' });
     };
 
     const openCreateModal = () => {
@@ -378,6 +390,7 @@ const PendlyApp: React.FC = () => {
                         onExportAll={() => downloadAllEventsIcs(events)}
                         eventCount={events.length}
                         onLogout={handleLogout}
+                        onDeleteAccount={handleDeleteAccount}
                     />
                 );
             default:

@@ -9,7 +9,7 @@ export const CATEGORIES: { value: Category; label: string; color: string }[] = [
 ];
 
 export const REPETITIONS: { value: Repetition; label: string }[] = [
-  { value: 'none', label: 'Не повторювати' },
+  { value: 'none', label: 'Без повтору' },
   { value: 'weekly', label: 'Щотижня' },
   { value: 'monthly', label: 'Щомісяця' },
   { value: 'yearly', label: 'Щороку' },

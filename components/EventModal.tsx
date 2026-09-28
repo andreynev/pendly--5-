@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { PendlyEvent, Category, Repetition, EventInput } from '../types';
 import { CATEGORIES, REPETITIONS } from '../constants';
 import { toLocalDateString } from '../utils/dateUtils';
+import { downloadIcsFile } from '../utils/calendarUtils';
+import { CalendarPlusIcon } from './Icons';
 
 interface EventModalProps {
     isOpen: boolean;
@@ -107,7 +109,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
                              <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} required className={inputStyles} />
                         </div>
                         <div>
-                            <label htmlFor="time" className={labelStyles}>Час <span className="text-sm font-normal text-slate-400">(необов'язково)</span></label>
+                            <label htmlFor="time" className={labelStyles}>Час</label>
                             <input type="time" id="time" value={time} onChange={e => setTime(e.target.value)} className={inputStyles} />
                         </div>
                     </div>
@@ -136,7 +138,18 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
 
                     {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-                    <div className="flex justify-end gap-4 pt-2">
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                        {event && (
+                            <button
+                                type="button"
+                                onClick={() => downloadIcsFile(event)}
+                                className="mr-auto p-2.5 rounded-lg text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:text-violet-500 transition-colors"
+                                aria-label="Додати в календар (.ics)"
+                                title="Додати в календар (.ics)"
+                            >
+                                <CalendarPlusIcon />
+                            </button>
+                        )}
                         <button type="button" onClick={onClose} className="px-5 py-2.5 text-base font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
                             Скасувати
                         </button>
