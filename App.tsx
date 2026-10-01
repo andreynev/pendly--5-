@@ -352,13 +352,11 @@ const PendlyApp: React.FC = () => {
 
     const renderContent = () => {
         switch (activeScreen) {
-            case 'home':
-            case 'archive': {
-                const isArchive = activeScreen === 'archive';
-                const source = isArchive ? pastEvents : upcomingEvents;
+            case 'home': {
+                const hasEvents = upcomingEvents.length + pastEvents.length > 0;
                 return (
                     <>
-                        {source.length > 0 && (
+                        {hasEvents && (
                             <FilterBar
                                 search={search}
                                 onSearchChange={setSearch}
@@ -367,12 +365,12 @@ const PendlyApp: React.FC = () => {
                             />
                         )}
                         <EventList
-                            events={applyFilters(source)}
-                            isArchive={isArchive}
+                            upcoming={applyFilters(upcomingEvents)}
+                            past={applyFilters(pastEvents)}
                             onDelete={handleDeleteEvent}
                             onEdit={openEditModal}
-                            loading={!isArchive && loading && events.length === 0}
-                            isFiltered={isFiltered && source.length > 0}
+                            loading={loading && events.length === 0}
+                            isFiltered={isFiltered && hasEvents}
                         />
                     </>
                 );

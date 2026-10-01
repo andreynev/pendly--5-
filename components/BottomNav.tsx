@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Screen } from '../types';
-import { HomeIcon, ArchiveIcon, SettingsIcon } from './Icons';
+import { HomeIcon, SettingsIcon } from './Icons';
 import { useI18n } from '../i18n/react';
 import type { MessageKey } from '../i18n';
 
@@ -11,7 +11,6 @@ interface BottomNavProps {
 
 const NAV_ITEMS: { screen: Screen; labelKey: MessageKey; icon: React.ReactNode }[] = [
     { screen: 'home', labelKey: 'nav.home', icon: <HomeIcon /> },
-    { screen: 'archive', labelKey: 'nav.archive', icon: <ArchiveIcon /> },
     { screen: 'settings', labelKey: 'nav.settings', icon: <SettingsIcon /> },
 ];
 
