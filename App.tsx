@@ -11,7 +11,8 @@ import {
 } from './services/calendarApi';
 import { planGoogleSync } from './utils/googleSync';
 import type { PendlyEvent, User, Theme, Screen, Category, EventInput } from './types';
-import { calculateNextOccurrence, daysUntil, parseLocalDate, pluralizeDays, pluralizeUk, startOfToday } from './utils/dateUtils';
+import { calculateNextOccurrence, daysUntil, parseLocalDate, startOfToday } from './utils/dateUtils';
+import { I18nProvider, useI18n } from './i18n/react';
 import { downloadAllEventsIcs } from './utils/calendarUtils';
 import LoginScreen from './components/LoginScreen';
 import Header from './components/Header';
@@ -53,6 +54,7 @@ const useToday = (): Date => {
 
 const PendlyApp: React.FC = () => {
     const toast = useToast();
+    const { t, locale } = useI18n();
     const today = useToday();
     const [user, setUser] = useState<User | null | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(readStoredTheme);
@@ -92,7 +94,7 @@ const PendlyApp: React.FC = () => {
                 toast(error.message, { kind: 'error' });
             },
         );
-    }, [user, toast]);
+    }, [user, toast, t]);
 
     useEffect(() => {
         const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -156,7 +158,7 @@ const PendlyApp: React.FC = () => {
         setActiveScreen('home');
         setSearch('');
         setCategoryFilter('all');
-        toast('Акаунт і всі події видалено.', { kind: 'success' });
+        toast(t('toast.accountDeleted'), { kind: 'success' });
     };
 
     const openCreateModal = () => {
@@ -178,11 +180,11 @@ const PendlyApp: React.FC = () => {
         if (!user) return;
         if (editingEvent) {
             await updateEventInDb(user.uid, editingEvent.id, eventData);
-            toast('Подію оновлено', { kind: 'success' });
+            toast(t('toast.eventUpdated'), { kind: 'success' });
         } else {
             await addEventToDb(user.uid, eventData);
             const days = daysUntil(calculateNextOccurrence(eventData, today), today);
-            toast(days > 0 ? `Подію додано — залишилось ${days} ${pluralizeDays(days)}` : 'Подію додано', { kind: 'success' });
+            toast(days > 0 ? t('toast.eventAddedIn', { days: `${days} ${t('unit.days', { count: days })}` }) : t('toast.eventAdded'), { kind: 'success' });
         }
         closeModal();
     };
@@ -194,9 +196,9 @@ const PendlyApp: React.FC = () => {
         if (event.source === 'google' && event.sourceEventId) {
             setDismissed(new Set([...getDismissed(), event.sourceEventId]));
         }
-        toast(`«${event.name}» видалено`, {
+        toast(t('toast.eventDeleted', { name: event.name }), {
             action: {
-                label: 'Повернути',
+                label: t('common.undo'),
                 onClick: () => {
                     restoreEventInDb(user.uid, event);
                     if (event.source === 'google' && event.sourceEventId) {
@@ -207,19 +209,19 @@ const PendlyApp: React.FC = () => {
                 },
             },
         });
-    }, [user, toast, getDismissed, setDismissed]);
+    }, [user, toast, t, getDismissed, setDismissed]);
 
     const importEvents = useCallback(async (incoming: EventInput[], sourceLabel: string) => {
         if (!user) return;
         const existingSourceIds = new Set((eventsRef.current ?? events).map(e => e.sourceEventId).filter(Boolean));
         const fresh = incoming.filter(e => !e.sourceEventId || !existingSourceIds.has(e.sourceEventId));
         if (fresh.length === 0) {
-            toast(`${sourceLabel}: нових подій не знайдено.`);
+            toast(t('toast.noNewEvents', { source: sourceLabel }));
             return;
         }
         await addEventsToDb(user.uid, fresh);
-        toast(`${sourceLabel}: імпортовано ${fresh.length} ${pluralizeUk(fresh.length, 'подію', 'події', 'подій')}`, { kind: 'success' });
-    }, [user, events, toast]);
+        toast(t('toast.imported', { source: sourceLabel, count: fresh.length }), { kind: 'success' });
+    }, [user, events, toast, t]);
 
     const syncGoogleCalendar = useCallback(async (accessToken: string, { silent = false } = {}) => {
         if (!user) return;
@@ -233,14 +235,14 @@ const PendlyApp: React.FC = () => {
         await addEventsToDb(user.uid, toAdd);
         await updateEventsInDb(user.uid, toUpdate);
         if (toAdd.length === 0 && toUpdate.length === 0) {
-            if (!silent) toast('Google Calendar: усе актуально.');
+            if (!silent) toast(t('toast.calendarUpToDate'));
             return;
         }
         const parts = [];
-        if (toAdd.length) parts.push(`додано ${toAdd.length} ${pluralizeUk(toAdd.length, 'подію', 'події', 'подій')}`);
-        if (toUpdate.length) parts.push(`оновлено ${toUpdate.length}`);
-        toast(`Google Calendar: ${parts.join(', ')}`, { kind: 'success' });
-    }, [user, toast, getDismissed]);
+        if (toAdd.length) parts.push(t('toast.calendarAdded', { count: toAdd.length }));
+        if (toUpdate.length) parts.push(t('toast.calendarUpdated', { count: toUpdate.length }));
+        toast(t('toast.calendarResult', { parts: parts.join(', ') }), { kind: 'success' });
+    }, [user, toast, t, getDismissed]);
 
     const runSync = useCallback(async (getToken: () => Promise<string | null>, silent = false) => {
         if (!user) return;
@@ -251,11 +253,11 @@ const PendlyApp: React.FC = () => {
         } catch (error) {
             console.error('Error syncing calendar:', error);
             if (error instanceof CalendarAuthError) clearCalendarConnection(user.uid, { keepConnection: true });
-            if (!silent) toast(error instanceof Error ? error.message : 'Не вдалося синхронізувати з календарем.', { kind: 'error' });
+            if (!silent) toast(error instanceof Error ? error.message : t('toast.syncFailed'), { kind: 'error' });
         } finally {
             setIsSyncing(false);
         }
-    }, [user, syncGoogleCalendar, toast]);
+    }, [user, syncGoogleCalendar, toast, t]);
 
     const grantCalendarAccess = useCallback((access: CalendarAccess): string => {
         if (!user) return access.accessToken;
@@ -284,7 +286,7 @@ const PendlyApp: React.FC = () => {
         clearCalendarConnection(user.uid);
         setCalendarConnection(null);
         if (token) await revokeAccessToken(token);
-        toast('Google Calendar відключено. Імпортовані події залишились у Pendly.');
+        toast(t('toast.calendarDisconnected'));
     };
 
     // Access granted through a redirect (popup was blocked) lands here after reload.
@@ -313,7 +315,7 @@ const PendlyApp: React.FC = () => {
             const parsed = parseIcsFile(text).map(e => ({ ...e, source: 'ics' as const }));
             await importEvents(parsed, file.name);
         } catch (error) {
-            toast(error instanceof Error ? error.message : 'Не вдалося імпортувати файл.', { kind: 'error' });
+            toast(error instanceof Error ? error.message : t('toast.importFailed'), { kind: 'error' });
         }
     };
 
@@ -331,12 +333,12 @@ const PendlyApp: React.FC = () => {
     }, [events, today]);
 
     const applyFilters = useCallback((list: PendlyEvent[]) => {
-        const query = search.trim().toLocaleLowerCase('uk-UA');
+        const query = search.trim().toLocaleLowerCase(locale);
         return list.filter(e =>
             (categoryFilter === 'all' || e.category === categoryFilter) &&
-            (!query || [e.name, e.location, e.notes].some(v => v?.toLocaleLowerCase('uk-UA').includes(query)))
+            (!query || [e.name, e.location, e.notes].some(v => v?.toLocaleLowerCase(locale).includes(query)))
         );
-    }, [search, categoryFilter]);
+    }, [search, categoryFilter, locale]);
 
     if (user === undefined) {
         return <div className="h-screen w-full flex items-center justify-center bg-white dark:bg-slate-900"><LoadingSpinner /></div>;
@@ -412,8 +414,8 @@ const PendlyApp: React.FC = () => {
               <button
                   onClick={openCreateModal}
                   className="fixed z-20 bottom-24 right-6 bg-violet-500 hover:bg-violet-600 text-white rounded-full p-4 shadow-lg transition-transform hover:scale-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-300"
-                  aria-label="Додати подію"
-                  title="Додати подію"
+                  aria-label={t('event.add')}
+                  title={t('event.add')}
               >
                   <AddIcon />
               </button>
@@ -432,9 +434,11 @@ const PendlyApp: React.FC = () => {
 };
 
 const App: React.FC = () => (
-    <ToastProvider>
-        <PendlyApp />
-    </ToastProvider>
+    <I18nProvider>
+        <ToastProvider>
+            <PendlyApp />
+        </ToastProvider>
+    </I18nProvider>
 );
 
 export default App;

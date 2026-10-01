@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Category } from '../types';
 import { CATEGORIES } from '../constants';
+import { useI18n } from '../i18n/react';
 import { SearchIcon } from './Icons';
 
 interface FilterBarProps {
@@ -18,6 +19,7 @@ const chip = (active: boolean) =>
 const roundButton = 'flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:text-violet-500 transition-colors';
 
 const FilterBar: React.FC<FilterBarProps> = ({ search, onSearchChange, category, onCategoryChange }) => {
+    const { t } = useI18n();
     // Search stays collapsed to an icon until needed, so the list stays the focus.
     const [isSearchOpen, setIsSearchOpen] = useState(search !== '');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -42,8 +44,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ search, onSearchChange, category,
                         value={search}
                         onChange={e => onSearchChange(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Escape') closeSearch(); }}
-                        placeholder="Пошук подій"
-                        aria-label="Пошук подій"
+                        placeholder={t('filter.search')}
+                        aria-label={t('filter.search')}
                         className="w-full h-9 pl-9 pr-3 rounded-full bg-slate-100 dark:bg-slate-700/60 text-base sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-violet-500 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
                     />
                 </div>
@@ -51,24 +53,24 @@ const FilterBar: React.FC<FilterBarProps> = ({ search, onSearchChange, category,
                 <div
                     className="flex-grow min-w-0 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_85%,transparent)] pr-6"
                     role="group"
-                    aria-label="Фільтр за категорією"
+                    aria-label={t('filter.byCategory')}
                 >
-                    <button className={chip(category === 'all')} aria-pressed={category === 'all'} onClick={() => onCategoryChange('all')}>Усі</button>
+                    <button className={chip(category === 'all')} aria-pressed={category === 'all'} onClick={() => onCategoryChange('all')}>{t('filter.all')}</button>
                     {CATEGORIES.map(c => (
                         <button key={c.value} className={chip(category === c.value)} aria-pressed={category === c.value} onClick={() => onCategoryChange(c.value)}>
-                            {c.label}
+                            {t(c.labelKey)}
                         </button>
                     ))}
                 </div>
             )}
             {isSearchOpen ? (
-                <button onClick={closeSearch} className={roundButton} aria-label="Закрити пошук" title="Закрити пошук">
+                <button onClick={closeSearch} className={roundButton} aria-label={t('filter.closeSearch')} title={t('filter.closeSearch')}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             ) : (
-                <button onClick={() => setIsSearchOpen(true)} className={roundButton} aria-label="Пошук подій" title="Пошук">
+                <button onClick={() => setIsSearchOpen(true)} className={roundButton} aria-label={t('filter.search')} title={t('filter.searchShort')}>
                     <SearchIcon className="w-4 h-4" />
                 </button>
             )}

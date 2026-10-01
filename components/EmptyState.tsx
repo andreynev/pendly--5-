@@ -1,5 +1,6 @@
 import React from 'react';
 import { CalendarIcon } from './Icons';
+import { useI18n } from '../i18n/react';
 
 interface EmptyStateProps {
     isArchive: boolean;
@@ -7,12 +8,13 @@ interface EmptyStateProps {
 }
 
 const EmptyState: React.FC<EmptyStateProps> = ({ isArchive, isFiltered = false }) => {
-    const title = isFiltered ? 'Нічого не знайдено' : isArchive ? 'Архів порожній' : 'Подій ще немає';
+    const { t } = useI18n();
+    const title = t(isFiltered ? 'empty.noResults' : isArchive ? 'empty.archive' : 'empty.events');
     const subtitle = isFiltered
-        ? 'Спробуйте змінити пошук або фільтр категорії.'
+        ? t('empty.noResultsHint')
         : isArchive
-            ? 'Тут будуть з\'являтися минулі події.'
-            : 'Додайте свою першу подію, щоб почати відлік!';
+            ? t('empty.archiveHint')
+            : t('empty.eventsHint');
 
     return (
         <div className="flex flex-col items-center justify-center text-center h-full p-8 mt-10">

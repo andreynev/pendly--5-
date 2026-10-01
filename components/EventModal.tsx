@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { PendlyEvent, Category, Repetition, EventInput } from '../types';
 import { CATEGORIES, REPETITIONS } from '../constants';
+import { useI18n } from '../i18n/react';
 import { toLocalDateString } from '../utils/dateUtils';
 import { downloadIcsFile } from '../utils/calendarUtils';
 import { CalendarPlusIcon } from './Icons';
@@ -13,6 +14,7 @@ interface EventModalProps {
 }
 
 const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event }) => {
+    const { t } = useI18n();
     const [name, setName] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
@@ -57,7 +59,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
         e.preventDefault();
         const trimmedName = name.trim();
         if (!trimmedName || !date) {
-            setError('Назва та дата є обов\'язковими.');
+            setError(t('modal.required'));
             return;
         }
         setIsSaving(true);
@@ -75,7 +77,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
                 repetition,
             });
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Не вдалося зберегти подію.');
+            setError(err instanceof Error ? err.message : t('modal.saveFailed'));
             setIsSaving(false);
         }
     };
@@ -95,44 +97,44 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
                 onClick={e => e.stopPropagation()}
             >
                 <h2 id="event-modal-title" className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
-                    {event ? 'Редагувати подію' : 'Нова подія'}
+                    {event ? t('modal.edit') : t('modal.new')}
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     <div>
-                        <label htmlFor="name" className={labelStyles}>Назва події</label>
+                        <label htmlFor="name" className={labelStyles}>{t('modal.name')}</label>
                         <input ref={nameInputRef} type="text" id="name" value={name} onChange={e => setName(e.target.value)} required maxLength={120} className={inputStyles} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                             <label htmlFor="date" className={labelStyles}>Дата</label>
+                             <label htmlFor="date" className={labelStyles}>{t('modal.date')}</label>
                              <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} required className={inputStyles} />
                         </div>
                         <div>
-                            <label htmlFor="time" className={labelStyles}>Час</label>
+                            <label htmlFor="time" className={labelStyles}>{t('modal.time')}</label>
                             <input type="time" id="time" value={time} onChange={e => setTime(e.target.value)} className={inputStyles} />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="category" className={labelStyles}>Категорія</label>
+                            <label htmlFor="category" className={labelStyles}>{t('modal.category')}</label>
                             <select id="category" value={category} onChange={e => setCategory(e.target.value as Category)} className={inputStyles}>
-                                {CATEGORIES.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
+                                {CATEGORIES.map(cat => <option key={cat.value} value={cat.value}>{t(cat.labelKey)}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="repetition" className={labelStyles}>Повторення</label>
+                            <label htmlFor="repetition" className={labelStyles}>{t('modal.repetition')}</label>
                             <select id="repetition" value={repetition} onChange={e => setRepetition(e.target.value as Repetition)} className={inputStyles}>
-                                {REPETITIONS.map(rep => <option key={rep.value} value={rep.value}>{rep.label}</option>)}
+                                {REPETITIONS.map(rep => <option key={rep.value} value={rep.value}>{t(rep.labelKey)}</option>)}
                             </select>
                         </div>
                     </div>
                     <div>
-                        <label htmlFor="location" className={labelStyles}>Місце <span className="text-sm font-normal text-slate-400">(необов'язково)</span></label>
+                        <label htmlFor="location" className={labelStyles}>{t('modal.location')} <span className="text-sm font-normal text-slate-400">{t('modal.optional')}</span></label>
                         <input type="text" id="location" value={location} onChange={e => setLocation(e.target.value)} className={inputStyles} />
                     </div>
                     <div>
-                        <label htmlFor="notes" className={labelStyles}>Нотатки</label>
+                        <label htmlFor="notes" className={labelStyles}>{t('modal.notes')}</label>
                         <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={inputStyles} />
                     </div>
 
@@ -144,17 +146,17 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
                                 type="button"
                                 onClick={() => downloadIcsFile(event)}
                                 className="mr-auto p-2.5 rounded-lg text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:text-violet-500 transition-colors"
-                                aria-label="Додати в календар (.ics)"
-                                title="Додати в календар (.ics)"
+                                aria-label={t('modal.addToCalendar')}
+                                title={t('modal.addToCalendar')}
                             >
                                 <CalendarPlusIcon />
                             </button>
                         )}
                         <button type="button" onClick={onClose} className="px-5 py-2.5 text-base font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
-                            Скасувати
+                            {t('common.cancel')}
                         </button>
                         <button type="submit" disabled={isSaving} className="px-5 py-2.5 text-base font-medium text-white bg-violet-500 rounded-lg hover:bg-violet-600 transition-colors disabled:opacity-50">
-                            {isSaving ? 'Збереження…' : 'Зберегти'}
+                            {isSaving ? t('common.saving') : t('common.save')}
                         </button>
                     </div>
                 </form>

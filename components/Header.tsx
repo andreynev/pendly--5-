@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PendlyEvent } from '../types';
-import { daysUntil, pluralizeDays } from '../utils/dateUtils';
+import { daysUntil } from '../utils/dateUtils';
+import { useI18n } from '../i18n/react';
 
 interface HeaderProps {
     userName: string;
@@ -16,16 +17,17 @@ const BokehCircle: React.FC<{ className: string; animationDelay: string }> = ({ 
 );
 
 const Header: React.FC<HeaderProps> = ({ userName, nextEvent, today }) => {
-    const todayLabel = today.toLocaleDateString('uk-UA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const { t, locale } = useI18n();
+    const todayLabel = today.toLocaleDateString(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     let nextLabel: string | null = null;
     if (nextEvent?.displayDate) {
         const days = daysUntil(nextEvent.displayDate, today);
         nextLabel = days === 0
-            ? `Сьогодні: ${nextEvent.name}`
+            ? t('header.today', { name: nextEvent.name })
             : days === 1
-                ? `Завтра: ${nextEvent.name}`
-                : `Найближча: ${nextEvent.name} — через ${days} ${pluralizeDays(days)}`;
+                ? t('header.tomorrow', { name: nextEvent.name })
+                : t('header.next', { name: nextEvent.name, days: `${days} ${t('unit.days', { count: days })}` });
     }
 
     return (
@@ -36,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ userName, nextEvent, today }) => {
                 <BokehCircle className="w-40 h-40 top-10 -right-16" animationDelay="2s" />
             </div>
             <div className="relative z-10 mx-auto max-w-2xl">
-                <h1 className="text-3xl sm:text-4xl font-bold drop-shadow-sm">Привіт, {userName.split(' ')[0]}!</h1>
+                <h1 className="text-3xl sm:text-4xl font-bold drop-shadow-sm">{t('header.greeting', { name: userName.split(' ')[0] })}</h1>
                 <p className="text-base opacity-90 mt-1 drop-shadow-sm first-letter:uppercase">{todayLabel}</p>
                 {nextLabel && <p className="text-sm font-medium mt-2 drop-shadow-sm line-clamp-2">{nextLabel}</p>}
             </div>

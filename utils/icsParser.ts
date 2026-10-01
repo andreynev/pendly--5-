@@ -1,6 +1,7 @@
 import ICAL from 'ical.js';
 import type { PendlyEvent, Repetition } from '../types';
 import { toLocalDateString } from './dateUtils';
+import { t } from '../i18n';
 
 export type ImportedEvent = Omit<PendlyEvent, 'id' | 'displayDate'>;
 
@@ -23,7 +24,7 @@ export const parseIcsFile = (icsContent: string): ImportedEvent[] => {
         vevents = vcalendar.getAllSubcomponents('vevent');
     } catch (error) {
         console.error('Failed to parse ICS file:', error);
-        throw new Error('Недійсний формат файлу .ics.');
+        throw new Error(t('error.icsInvalid'));
     }
 
     const importedEvents: ImportedEvent[] = [];
@@ -44,7 +45,7 @@ export const parseIcsFile = (icsContent: string): ImportedEvent[] => {
         }
 
         importedEvents.push({
-            name: event.summary || 'Без назви',
+            name: event.summary || t('common.untitled'),
             date: toLocalDateString(startDate),
             time,
             location: event.location || '',
