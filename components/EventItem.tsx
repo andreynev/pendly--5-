@@ -1,7 +1,8 @@
 import React from 'react';
 import type { PendlyEvent } from '../types';
 import { CATEGORIES, REPETITIONS } from '../constants';
-import { daysUntil, formatDate, parseLocalDate, pluralizeDays } from '../utils/dateUtils';
+import { daysUntil, formatDate, parseLocalDate } from '../utils/dateUtils';
+import { useI18n } from '../i18n/react';
 import { TrashIcon, GoogleCalendarIcon, RepeatIcon } from './Icons';
 
 interface EventItemProps {
@@ -12,8 +13,10 @@ interface EventItemProps {
 }
 
 const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdit }) => {
+    const { t } = useI18n();
     const categoryInfo = CATEGORIES.find(c => c.value === event.category);
-    const repetitionLabel = REPETITIONS.find(r => r.value === event.repetition)?.label;
+    const repetitionKey = REPETITIONS.find(r => r.value === event.repetition)?.labelKey;
+    const repetitionLabel = repetitionKey ? t(repetitionKey) : undefined;
 
     const displayDate = event.displayDate || parseLocalDate(event.date);
     const days = daysUntil(displayDate);
@@ -21,11 +24,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
     const isToday = !isPast && days === 0;
     const countdownValue = Math.abs(days);
 
-    const countdownLabel = isToday
-        ? 'сьогодні'
-        : isPast
-            ? `${pluralizeDays(countdownValue)} тому`
-            : pluralizeDays(countdownValue);
+    const countdownLabel = t(isPast ? 'unit.daysAgo' : 'unit.days', { count: countdownValue });
 
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -40,7 +39,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
                     onEdit(event);
                 }
             }}
-            aria-label={`${event.name}: редагувати`}
+            aria-label={t('event.edit', { name: event.name })}
             className="animate-fade-in relative flex items-center gap-4 p-4 sm:p-5 bg-white dark:bg-slate-800/50 rounded-2xl shadow-sm transition-shadow hover:shadow-md cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
         >
             <div className={`flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl flex flex-col items-center justify-center text-center transition-colors
@@ -50,7 +49,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
                         ? 'bg-violet-500 text-white'
                         : 'bg-violet-100 dark:bg-violet-900/50 text-violet-900 dark:text-violet-300'}`}>
                 {isToday ? (
-                    <span className="text-lg font-bold uppercase">Сьогодні</span>
+                    <span className="text-lg font-bold uppercase">{t('event.today')}</span>
                 ) : (
                     <>
                         <span className="text-3xl sm:text-4xl font-bold leading-none">{countdownValue}</span>
@@ -61,14 +60,14 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
             <div className="flex-grow min-w-0">
                 <h3 className={`pr-8 text-lg sm:text-xl font-bold leading-snug line-clamp-2 break-words ${isArchive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>{event.name}</h3>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                    {categoryInfo && <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${categoryInfo.color}`}>{categoryInfo.label}</span>}
+                    {categoryInfo && <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${categoryInfo.color}`}>{t(categoryInfo.labelKey)}</span>}
                     {event.repetition !== 'none' && (
                         <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400" title={repetitionLabel}>
                             <RepeatIcon className="w-3.5 h-3.5" /> {repetitionLabel}
                         </span>
                     )}
                     {event.source === 'google' && (
-                        <span title="Імпортовано з Google Calendar">
+                        <span title={t('event.fromGoogle')}>
                             <GoogleCalendarIcon className="w-4 h-4" />
                         </span>
                     )}
@@ -83,8 +82,8 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
                 <button
                     onClick={e => { stop(e); onDelete(event); }}
                     className="p-2 rounded-full text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                    aria-label="Видалити подію"
-                    title="Видалити подію"
+                    aria-label={t('event.delete')}
+                    title={t('event.delete')}
                 >
                     <TrashIcon />
                 </button>

@@ -31,6 +31,7 @@ import {
 import { FirebaseError } from 'firebase/app';
 import type { User, PendlyEvent, EventInput, Category, Repetition } from '../types';
 import { firebaseConfig } from './firebaseConfig';
+import { t, type MessageKey } from '../i18n';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -68,16 +69,16 @@ const toStoredFields = (event: EventInput) => ({
 
 // --- AUTH ---
 
-const AUTH_ERRORS: Record<string, string> = {
-    'auth/network-request-failed': 'Немає з\'єднання з інтернетом.',
-    'auth/unauthorized-domain': 'Цей домен не дозволено для входу. Додайте його в Firebase → Authentication → Settings → Authorized domains.',
-    'auth/operation-not-allowed': 'Вхід через Google не увімкнено в Firebase → Authentication.',
-    'auth/too-many-requests': 'Забагато спроб. Спробуйте пізніше.',
+const AUTH_ERRORS: Record<string, MessageKey> = {
+    'auth/network-request-failed': 'error.network',
+    'auth/unauthorized-domain': 'error.unauthorizedDomain',
+    'auth/operation-not-allowed': 'error.signInDisabled',
+    'auth/too-many-requests': 'error.tooManyRequests',
 };
 
 const toUserError = (error: unknown): Error => {
     const code = error instanceof FirebaseError ? error.code : '';
-    return new Error(AUTH_ERRORS[code] ?? 'Не вдалося увійти. Спробуйте ще раз.');
+    return new Error(t(AUTH_ERRORS[code] ?? 'error.signInFailed'));
 };
 
 export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
@@ -178,7 +179,7 @@ export const signOut = (): Promise<void> => firebaseSignOut(auth);
  */
 export const requestCalendarAccess = async (): Promise<CalendarAccess | null> => {
     const user = auth.currentUser;
-    if (!user) throw new Error('Спочатку увійдіть в обліковий запис.');
+    if (!user) throw new Error(t('error.signInFirst'));
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
     provider.setCustomParameters({ login_hint: user.email ?? '' });
@@ -190,7 +191,7 @@ export const requestCalendarAccess = async (): Promise<CalendarAccess | null> =>
         }
         const result = await reauthenticateWithPopup(user, provider);
         const token = GoogleAuthProvider.credentialFromResult(result)?.accessToken;
-        if (!token) throw new Error('Google не надав доступ до календаря.');
+        if (!token) throw new Error(t('error.noCalendarAccess'));
         return { accessToken: token, email: result.user.email ?? '' };
     } catch (error) {
         const code = error instanceof FirebaseError ? error.code : '';
@@ -200,10 +201,10 @@ export const requestCalendarAccess = async (): Promise<CalendarAccess | null> =>
             return null;
         }
         if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-            throw new Error('Підключення скасовано.');
+            throw new Error(t('error.connectCancelled'));
         }
         if (code === 'auth/user-mismatch') {
-            throw new Error('Оберіть той самий Google-акаунт, яким ви увійшли в Pendly.');
+            throw new Error(t('error.wrongAccount'));
         }
         if (error instanceof FirebaseError) throw toUserError(error);
         throw error;
@@ -238,7 +239,7 @@ export const onEventsSnapshot = (
         },
         error => {
             console.error('Events listener failed:', error);
-            onError?.(new Error('Не вдалося завантажити події.'));
+            onError?.(new Error(t('error.loadEvents')));
         },
     );
 
@@ -305,7 +306,7 @@ const needsFreshSignIn = (): boolean => {
  */
 export const deleteAccount = async (): Promise<void> => {
     const user = auth.currentUser;
-    if (!user) throw new Error('Спочатку увійдіть в обліковий запис.');
+    if (!user) throw new Error(t('error.signInFirst'));
 
     const reauthenticate = async () => {
         const provider = new GoogleAuthProvider();
@@ -315,10 +316,10 @@ export const deleteAccount = async (): Promise<void> => {
         } catch (error) {
             const code = error instanceof FirebaseError ? error.code : '';
             if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-                throw new Error('Видалення скасовано.');
+                throw new Error(t('error.deleteCancelled'));
             }
             if (code === 'auth/user-mismatch') {
-                throw new Error('Оберіть той самий Google-акаунт, яким ви увійшли в Pendly.');
+                throw new Error(t('error.wrongAccount'));
             }
             throw toUserError(error);
         }
@@ -338,7 +339,7 @@ export const deleteAccount = async (): Promise<void> => {
         await deleteUser(user);
     } catch (error) {
         if (error instanceof FirebaseError && error.code === 'auth/requires-recent-login') {
-            throw new Error('Для безпеки увійдіть знову й повторіть видалення. Ваші події вже видалено.');
+            throw new Error(t('error.deleteRelogin'));
         }
         throw error;
     }

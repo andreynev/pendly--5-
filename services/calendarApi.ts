@@ -1,5 +1,6 @@
 import type { Repetition, EventInput } from '../types';
 import { toLocalDateString } from '../utils/dateUtils';
+import { t } from '../i18n';
 
 // Subset of the Google Calendar API v3 event resource that we use.
 export interface GoogleCalendarEvent {
@@ -96,21 +97,21 @@ export const fetchCalendarEvents = async (accessToken: string): Promise<GoogleCa
             headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (response.status === 401) {
-            throw new CalendarAuthError('Доступ до календаря завершився. Підключіть календар ще раз.');
+            throw new CalendarAuthError(t('error.calendarExpired'));
         }
         if (response.status === 403) {
             const body = await response.json().catch(() => null);
             const reason: string = body?.error?.errors?.[0]?.reason ?? body?.error?.status ?? '';
             if (/insufficient|PERMISSION_DENIED/i.test(reason)) {
-                throw new CalendarAuthError('Під час підключення не було надано доступ до календаря. Підключіть ще раз і поставте позначку біля Google Calendar.');
+                throw new CalendarAuthError(t('error.calendarScope'));
             }
             if (/accessNotConfigured|SERVICE_DISABLED/i.test(reason) || /has not been used|is disabled/i.test(body?.error?.message ?? '')) {
-                throw new Error('Google Calendar API не увімкнено в проєкті Google Cloud.');
+                throw new Error(t('error.calendarApiDisabled'));
             }
-            throw new Error('Google відхилив запит до календаря.');
+            throw new Error(t('error.calendarRejected'));
         }
         if (!response.ok) {
-            throw new Error(`Помилка Google Calendar (${response.status}).`);
+            throw new Error(t('error.calendarStatus', { status: response.status }));
         }
         const data = await response.json();
         items.push(...(data.items ?? []));
@@ -173,7 +174,7 @@ export const transformGoogleEvent = (gEvent: GoogleCalendarEvent): EventInput | 
     }
 
     return {
-        name: (gEvent.summary || 'Без назви').slice(0, 200),
+        name: (gEvent.summary || t('common.untitled')).slice(0, 200),
         date,
         time,
         location: (gEvent.location || '').slice(0, 500),

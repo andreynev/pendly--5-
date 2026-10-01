@@ -1,4 +1,5 @@
 import type { PendlyEvent } from '../types';
+import { getLocale } from '../i18n';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -92,7 +93,7 @@ export const formatDate = (date: Date, includeTime: string | undefined): string 
         month: 'long',
         day: 'numeric'
     };
-    let dateString = date.toLocaleDateString('uk-UA', options);
+    let dateString = date.toLocaleDateString(getLocale(), options);
     if (includeTime) {
         dateString += `, ${includeTime}`;
     }

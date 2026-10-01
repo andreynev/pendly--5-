@@ -51,6 +51,7 @@ Pendly — простий і красивий застосунок, який п�
 • Світла, темна або системна тема
 • Швидке редагування — просто торкніться події
 • Випадково видалили подію? Натисніть «Повернути»
+• 8 мов: українська, англійська, іспанська, португальська, німецька, французька, італійська, польська
 
 БЕЗ РЕКЛАМИ Й СТЕЖЕННЯ
 Pendly не показує рекламу, не використовує аналітику і не продає ваші дані. Ви можете будь-коли видалити акаунт разом з усіма даними прямо в застосунку.
@@ -96,7 +97,7 @@ CONVENIENT
 NO ADS, NO TRACKING
 Pendly shows no ads, uses no analytics and never sells your data. You can delete your account and all your data at any time right in the app.
 
-The app interface is in Ukrainian.
+Available in English, Ukrainian, Spanish, Portuguese, German, French, Italian and Polish.
 ```
 
 ---
@@ -139,3 +140,11 @@ The app interface is in Ukrainian.
    - **Signing key:** *Create new* — збережіть архів із ключем і паролями в надійному місці.
 3. Завантажте `.aab` у Play Console (спершу **Internal testing**).
 4. Надішліть SHA-256 відбитки двох ключів — з PWABuilder (`assetlinks.json` в архіві) і з Play Console → **Test and release → App integrity → App signing key certificate**. Вони йдуть у `public/.well-known/assetlinks.json`, щоб застосунок відкривався без адресного рядка.
+
+---
+
+## Переклади сторінки магазину
+
+Інтерфейс застосунку доступний 8 мовами: uk, en, es, pt, de, fr, it, pl (мова береться з налаштувань телефона, змінити можна в Налаштуваннях).
+Для сторінки в Play Console: основна мова — українська, англійський текст — вище; для **es-ES, pt-BR, de-DE, fr-FR, it-IT, pl-PL**
+скористайтеся «Керування перекладами → Перекласти за допомогою ШІ» і перегляньте результат.
