@@ -22,6 +22,6 @@ export interface PendlyEvent {
 }
 
 export type Theme = 'light' | 'dark' | 'system';
-export type Screen = 'home' | 'archive' | 'settings';
+export type Screen = 'home' | 'settings';
 
 export type EventInput = Omit<PendlyEvent, 'id' | 'displayDate'>;

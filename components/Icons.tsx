@@ -103,3 +103,11 @@ export const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
     </svg>
 );
+
+export const ShareIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-5 w-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7" />
+        <path d="M16 6l-4-4-4 4" />
+        <path d="M12 2v13" />
+    </svg>
+);

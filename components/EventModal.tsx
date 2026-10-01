@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { PendlyEvent, Category, Repetition, EventInput } from '../types';
 import { CATEGORIES, REPETITIONS } from '../constants';
 import { useI18n } from '../i18n/react';
-import { toLocalDateString } from '../utils/dateUtils';
-import { downloadIcsFile } from '../utils/calendarUtils';
-import { CalendarPlusIcon } from './Icons';
+import { daysUntil, parseLocalDate, toLocalDateString } from '../utils/dateUtils';
+import { ShareIcon } from './Icons';
+import { useToast } from './Toast';
 
 interface EventModalProps {
     isOpen: boolean;
@@ -15,6 +15,7 @@ interface EventModalProps {
 
 const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event }) => {
     const { t } = useI18n();
+    const toast = useToast();
     const [name, setName] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
@@ -82,6 +83,29 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
         }
     };
 
+    const shareEvent = async (target: PendlyEvent) => {
+        const days = daysUntil(target.displayDate ?? parseLocalDate(target.date));
+        const count = Math.abs(days);
+        const daysText = `${count} ${t('unit.days', { count })}`;
+        const line = days === 0
+            ? t('share.today', { name: target.name })
+            : t(days > 0 ? 'share.future' : 'share.past', { name: target.name, days: daysText });
+        const url = window.location.origin;
+        const text = `${line}\n${t('share.footer', { url })}`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ text });
+            } else {
+                await navigator.clipboard.writeText(text);
+                toast(t('share.copied'), { kind: 'success' });
+            }
+        } catch (err) {
+            // Closing the share sheet is not an error.
+            if (err instanceof DOMException && err.name === 'AbortError') return;
+            console.error('Share failed:', err);
+        }
+    };
+
     if (!isOpen) return null;
 
     const inputStyles = "mt-1 block w-full p-3 rounded-md border-transparent bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:outline-none transition";
@@ -144,12 +168,12 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event 
                         {event && (
                             <button
                                 type="button"
-                                onClick={() => downloadIcsFile(event)}
+                                onClick={() => shareEvent(event)}
                                 className="mr-auto p-2.5 rounded-lg text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:text-violet-500 transition-colors"
-                                aria-label={t('modal.addToCalendar')}
-                                title={t('modal.addToCalendar')}
+                                aria-label={t('share.button')}
+                                title={t('share.button')}
                             >
-                                <CalendarPlusIcon />
+                                <ShareIcon />
                             </button>
                         )}
                         <button type="button" onClick={onClose} className="px-5 py-2.5 text-base font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">

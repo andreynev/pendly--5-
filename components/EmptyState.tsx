@@ -3,18 +3,15 @@ import { CalendarIcon } from './Icons';
 import { useI18n } from '../i18n/react';
 
 interface EmptyStateProps {
-    isArchive: boolean;
     isFiltered?: boolean;
+    /** There are past events, just nothing upcoming. */
+    hasPast?: boolean;
 }
 
-const EmptyState: React.FC<EmptyStateProps> = ({ isArchive, isFiltered = false }) => {
+const EmptyState: React.FC<EmptyStateProps> = ({ isFiltered = false, hasPast = false }) => {
     const { t } = useI18n();
-    const title = t(isFiltered ? 'empty.noResults' : isArchive ? 'empty.archive' : 'empty.events');
-    const subtitle = isFiltered
-        ? t('empty.noResultsHint')
-        : isArchive
-            ? t('empty.archiveHint')
-            : t('empty.eventsHint');
+    const title = t(isFiltered ? 'empty.noResults' : hasPast ? 'empty.noUpcoming' : 'empty.events');
+    const subtitle = t(isFiltered ? 'empty.noResultsHint' : 'empty.eventsHint');
 
     return (
         <div className="flex flex-col items-center justify-center text-center h-full p-8 mt-10">
