@@ -49,7 +49,10 @@ const EventItem: React.FC<EventItemProps> = ({ event, isArchive, onDelete, onEdi
                         ? 'bg-violet-500 text-white'
                         : 'bg-violet-100 dark:bg-violet-900/50 text-violet-900 dark:text-violet-300'}`}>
                 {isToday ? (
-                    <span className="text-lg font-bold uppercase">{t('event.today')}</span>
+                    <>
+                        <span className="text-3xl sm:text-4xl leading-none" aria-hidden="true">🎉</span>
+                        <span className="mt-1.5 px-1 max-w-full text-[11px] sm:text-xs font-bold uppercase tracking-wide leading-tight break-words">{t('event.today')}</span>
+                    </>
                 ) : (
                     <>
                         <span className="text-3xl sm:text-4xl font-bold leading-none">{countdownValue}</span>
